@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect } from "react";
 import logo from "./logo.svg";
 import "./App.css";
 import Markdown from "markdown-to-jsx";
@@ -6,38 +6,91 @@ import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-markdown";
 import "ace-builds/src-noconflict/theme-monokai";
 import styled from "styled-components";
+const fs = window.require("fs");
+const settings = window.require("electron-settings");
 const { ipcRenderer } = window.require("electron");
 
 function App() {
   const [state, setState] = useState({
     loadedFile: "#Upload a file to get started",
-    newContent: ""
+    newContent: "",
+    directory: settings.get("directory") || null,
+    filesData: [],
+    loaded: false
   });
 
-  const handleNewContent = c => {
-    setState({ loadedFile: c });
+  const { directory, loadedFile, fileData } = state;
+  const dir = settings.get("directory");
+
+  const updateContent = c => {
+    setState(state => ({ ...state.loadedFile, c }));
+  };
+  const updateDir = d => {
+    settings.set("directory", d);
+    setState(state => ({ ...state.directory, d }));
+  };
+
+  const handleLoadFiles = directory => {
+    console.log("LOAD", directory);
+    fs.readdir(directory, (err, files) => {
+      const fileData = files.map(file => ({ path: `${directory}/${file}` }));
+      setState(state => ({ ...state.filesData, fileData }));
+      console.log(fileData);
+    });
+  };
+
+  const loadFile = index => {
+    console.log(state.filesData[index].path);
+    const content = fs.readFileSync(state.filesData[index].path).toString();
+    console.log(content);
+    updateContent(content);
   };
 
   ipcRenderer.on("new-file", (event, fileContent) => {
-    setState({ loadedFile: fileContent });
+    updateContent(fileContent);
     console.log(event, fileContent);
   });
+  ipcRenderer.on("new-dir", (event, directory) => {
+    console.log(event, directory);
+    updateDir(directory);
+    handleLoadFiles(directory);
+  });
+
+  useEffect(() => {}, []);
+
   return (
     <AppWrap>
-      <Split>
-        <CodeWindow>
-          <AceEditor
-            mode="markdown"
-            theme="monokai"
-            onChange={editedContent => handleNewContent(editedContent)}
-            name="markdown_editor"
-            value={state.loadedFile}
-          />
-        </CodeWindow>
-        <RenderedWindow>
-          <Markdown>{state.loadedFile && state.loadedFile}</Markdown>
-        </RenderedWindow>
-      </Split>
+      <Header>Journal</Header>
+
+      {state.directory && state.filesData ? (
+        <Split>
+          <div className="files">
+            {state.filesData.map((file, index) => (
+              <button key={index} onClick={() => loadFile(index)}>
+                {file.path}
+              </button>
+            ))}
+          </div>
+          <CodeWindow>
+            <AceEditor
+              mode="markdown"
+              theme="monokai"
+              onChange={editedContent => updateContent(editedContent)}
+              name="markdown_editor"
+              value={state.loadedFile}
+            />
+          </CodeWindow>
+          <RenderedWindow>
+            <Markdown>
+              {state.loadedFile ? state.loadedFile : "#Add a file"}
+            </Markdown>
+          </RenderedWindow>
+        </Split>
+      ) : (
+        <LoadingMessage>
+          <h2>Use CMD + O to open a directory</h2>
+        </LoadingMessage>
+      )}
     </AppWrap>
   );
 }
@@ -49,7 +102,7 @@ const AppWrap = styled.div`
 `;
 
 const Header = styled.header`
-  background-color: #191324;
+  background-color: #272822;
   color: #75717c;
   font-size: 0.8rem;
   height: 23px;
@@ -68,7 +121,7 @@ const LoadingMessage = styled.div`
   justify-content: center;
   align-items: center;
   color: white;
-  background-color: #191324;
+  background-color: #272822;
   height: 100vh;
 `;
 
@@ -97,15 +150,15 @@ const FilesWindow = styled.div`
 const CodeWindow = styled.div`
   flex: 1;
   padding-top: 2rem;
-  background-color: #191324;
+  background-color: #272822;
 `;
 
 const RenderedWindow = styled.div`
-  background-color: #191324;
+  background-color: #272822;
   width: 35%;
   padding: 20px;
   color: #fff;
-  border-left: 1px solid #302b3a;
+  border-left: 3px solid #302b3a;
   h1,
   h2,
   h3,

@@ -31,7 +31,7 @@ function createWindow() {
     ...(isMac
       ? [
           {
-            label: app.name,
+            label: "Journal",
             submenu: [
               { role: "about" },
               { type: "separator" },
@@ -51,13 +51,12 @@ function createWindow() {
       label: "File",
       submenu: [
         {
-          label: "Open File",
-          accelerator: "CmdOrCtrl+0",
+          label: "Open Folder",
+          accelerator: "CmdOrCtrl+O",
           click() {
-            openFile();
+            openDir();
           }
-        },
-        { label: "Open Folder" }
+        }
       ]
     },
     // { role: 'editMenu' }
@@ -163,21 +162,42 @@ app.on("activate", function() {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
-function openFile() {
-  const files = dialog
+// function openFile() {
+//   const files = dialog
+//     .showOpenDialog(mainWindow, {
+//       properties: ["openFile"],
+//       filters: [{ name: "Markdown", extensions: ["md"] }]
+//     })
+//     .then(result => {
+//       console.log(result.canceled);
+//       console.log(result.filePaths);
+//       console.log(result);
+//       let filePath = result.filePaths[0].toString();
+
+//       let fileContent = fs.readFileSync(filePath).toString();
+//       if (!result.canceled) {
+//         mainWindow.webContents.send("new-file", fileContent);
+//       }
+//     })
+//     .catch(err => {
+//       console.log(err);
+//     });
+// }
+
+function openDir() {
+  const directory = dialog
     .showOpenDialog(mainWindow, {
-      properties: ["openFile"],
-      filters: [{ name: "Markdown", extensions: ["md"] }]
+      properties: ["openDirectory"],
+      filters: [
+        { name: "Markdown", extensions: ["md", "mdx", "txt", "markdown"] }
+      ]
     })
     .then(result => {
-      console.log(result.canceled);
-      console.log(result.filePaths);
       console.log(result);
-      let filePath = result.filePaths[0].toString();
+      let filePath = result.filePaths.toString();
 
-      let fileContent = fs.readFileSync(filePath).toString();
       if (!result.canceled) {
-        mainWindow.webContents.send("new-file", fileContent);
+        mainWindow.webContents.send("new-dir", filePath);
       }
     })
     .catch(err => {
